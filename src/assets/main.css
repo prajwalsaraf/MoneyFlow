@@ -1,0 +1,159 @@
+/* src/assets/main.css */
+:root {
+  /* Light Mode (Default) Variables */
+  --color-primary-yellow: #FFC107;
+  --color-black: #000000;
+  --color-white: #ffffff; /* For backgrounds of boxes/buttons */
+  --color-text: #000000;
+  --color-bg-main: #ffffff; /* Main content area background */
+  --color-bg-sidebar: var(--color-primary-yellow);
+  --color-hover: #f0f0f0;
+  --color-danger: #ff3b30;
+  --border-thickness: 3px;
+  --shadow-offset: 4px;
+}
+
+/* Dark Mode Variables */
+body.dark-mode {
+  --color-text: #ffffff;
+  --color-bg-main: #1a1a1a;
+  --color-bg-sidebar: #333333;
+  --color-hover: #444444;
+  --color-white: #2a2a2a; /* Redefine 'white' to a dark gray for boxes in dark mode */
+  /* Note: We keep yellow and black for borders/shadows to maintain the neo-brutalism style */
+}
+
+body {
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  background-color: var(--color-bg-main);
+  color: var(--color-text);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- Utility Classes --- */
+
+.retro-box {
+  border: var(--border-thickness) solid var(--color-black);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--color-black);
+  background-color: var(--color-white);
+  color: var(--color-text);
+}
+
+.retro-btn {
+    border: var(--border-thickness) solid var(--color-black);
+    padding: 10px 15px;
+    font-weight: bold;
+    cursor: pointer;
+    background: var(--color-white);
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease, background-color 0.3s, color 0.3s;
+    box-shadow: 2px 2px 0px black;
+}
+
+.retro-btn:hover {
+    background: var(--color-hover);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px black;
+}
+
+.retro-btn.active {
+    background: var(--color-black);
+    color: var(--color-primary-yellow);
+}
+
+/* --- Layout Structure --- */
+
+/* The main container's grid columns are now set dynamically in App.vue */
+
+.main-header {
+  grid-column: 1 / span 2;
+  grid-row: 1;
+  background-color: var(--color-primary-yellow);
+  border-bottom: var(--border-thickness) solid var(--color-black);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 10;
+  color: var(--color-black); /* Header text always black */
+}
+
+.main-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  background-color: var(--color-bg-sidebar);
+  border-right: var(--border-thickness) solid var(--color-black);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden; /* Hide expanding/collapsing content */
+  transition: padding 0.3s ease;
+}
+
+/* Adjust padding when collapsed to center icons */
+.main-sidebar.collapsed {
+    padding: 20px 10px;
+    align-items: center;
+}
+
+.main-content-area {
+  grid-column: 2;
+  grid-row: 2;
+  padding: 30px;
+  overflow-y: auto;
+  background-color: var(--color-bg-main);
+  position: relative;
+}
+
+/* Floating Action Button */
+.fab-help {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: var(--color-black);
+    color: var(--color-primary-yellow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+    cursor: pointer;
+}
+
+/* --- View-Specific Fixes for Theming --- */
+
+/* DataView Table */
+.retro-table th {
+    border-bottom: 3px solid var(--color-black);
+    padding: 10px;
+    text-align: center;
+    font-weight: 900;
+}
+
+.retro-table td {
+    border-bottom: 1px solid var(--color-black);
+    padding: 10px 5px;
+    text-align: center;
+}
+
+.highlight-row {
+    background-color: rgba(255, 193, 7, 0.3);
+}
+body.dark-mode .highlight-row {
+    background-color: rgba(255, 193, 7, 0.15); /* Lower opacity for dark mode */
+}
+
+/* GraphView Charts */
+.chart-container {
+    border: 3px solid var(--color-black);
+    box-shadow: 4px 4px 0px var(--color-black);
+    background: var(--color-white);
+}
