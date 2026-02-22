@@ -4,6 +4,7 @@ import { API_BASE, apiFetch } from '@/api';
 import { Filter } from 'lucide-vue-next';
 
 // --- State ---
+const accounts = ref([]);
 const transactions = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
@@ -31,33 +32,34 @@ const getMonthName = (dateStr) => new Date(dateStr).toLocaleString('default', { 
 onMounted(async () => {
   try {
     const endpoint = `/moneyflow/accounts/all-txns/`;
-    const response = await apiFetch(endpoint);
+    const accEndpoint = `/moneyflow/accounts/`;
     
+    const response = await apiFetch(endpoint);
     if (!response.ok) {
         const errorText = await response.text();
         console.error("Server returned an error:", errorText);
         throw new Error(`Server Error: ${response.status}.`);
     }
-
+    
     const result = await response.json();
+    transactions.value = result.results; // DRF paginated response
     
-    // DEBUG: Let's see exactly what Django sent back
-    console.log("Raw API Response:", result);
+    let prevPage = result.previous
+    let nextPage = result.next
     
-    // 1. SAFELY EXTRACT THE ARRAY
-    if (Array.isArray(result)) {
-        transactions.value = result; // It was a plain array
-    } else if (result && Array.isArray(result.results)) {
-        transactions.value = result.results; // DRF paginated response
-    } else if (result && Array.isArray(result.data)) {
-        transactions.value = result.data; // Custom wrapper
-    } else {
-        console.error("Could not find an array in the response!");
-        transactions.value = []; // Fallback so .map() doesn't crash
+    
+    const accResponse = await apiFetch(accEndpoint);
+    if (!accResponse.ok) {
+        const errorText = await response.text();
+        console.error("Server returned an error:", errorText);
+        throw new Error(`Server Error: ${response.status}.`);
     }
-
+    const acc_result = await accResponse.json()
+    accounts.value = acc_result.results;
+    
+    
     // 2. NOW IT IS SAFE TO MAP
-    const uniqueYears = [...new Set(transactions.value.map(t => getYear(t.date)))];
+    const uniqueYears = [...new Set(transactions.value.map(t => getYear(new Date(t.txn_date))))];
     
     // 3. Filter out any potential NaN/undefined years if dates are missing, then sort
     availableYears.value = uniqueYears
@@ -78,24 +80,29 @@ const filteredTransactions = computed(() => {
 
     // Filter by Year
     if (selectedYear.value !== 'All Years') {
-        data = data.filter(t => getYear(t.date) === selectedYear.value);
+        data = data.filter(t => getYear(t.txn_date) === selectedYear.value);
     }
 
     // Filter by Month
     if (selectedMonth.value !== 'All Months') {
-        data = data.filter(t => getMonthName(t.date) === selectedMonth.value);
+        data = data.filter(t => getMonthName(t.txn_date) === selectedMonth.value);
     }
 
     return data;
 });
+
+const getAccountName = (value) => {
+    let acc = accounts.value.find(acc => acc.id === value);
+    return acc.name + ' - ' + acc.acc_no.toString().slice(-4)
+}
+
 </script>
 
 <template>
   <div class="retro-box p-4">
     <div class="flex justify-between items-center mb-4">
         <div>
-             <h2 style="font-weight: 900; margin:0;">Database Records</h2>
-             <p style="margin:0; color: gray;">Data fetched from SQLite database</p>
+             <h2 style="font-weight: 900; margin:0;">All Transaction Records</h2>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <Filter size="20"/>
@@ -117,24 +124,26 @@ const filteredTransactions = computed(() => {
     <table v-else class="retro-table">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Date</th>
-          <th style="text-align: left;">Narration</th>
+          <th>Account</th>
+          <th>Transaction Date</th>
+          <th style="text-align: left;">Transaction Description</th>
+          <th style="text-align: left;">Group Name</th>
           <th>Debit Amount</th>
           <th>Credit Amount</th>
-          <th>Chq Ref Number</th>
+          <th>Ref. Number</th>
           <th>Closing Balance</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(item, index) in filteredTransactions" :key="item.id" :class="{ 'highlight-row': index === 0 }">
-          <td>{{ item.id }}</td>
-          <td>{{ item.date }}</td>
-          <td style="text-align: left; font-weight: bold;">{{ item.narration }}</td>
-          <td style="text-align: right;">{{ formatCurrency(item.debit) }}</td>
-          <td style="text-align: right;">{{ formatCurrency(item.credit) }}</td>
-          <td>{{ item.chq_ref }}</td>
-          <td style="text-align: right; font-weight: bold;">{{ formatCurrency(item.closing_balance) }}</td>
+          <td>{{ getAccountName(item.account) }}</td>
+          <td>{{ new Date(item.txn_date).toLocaleDateString() }}</td>
+          <td style="text-align: left; font-weight: bold;">{{ item.txn_desc }}</td>
+          <td style="text-align: left; font-weight: bold;">{{ item.grp_name }}</td>
+          <td style="text-align: right;">{{ formatCurrency(item.dbt_amount) }}</td>
+          <td style="text-align: right;">{{ formatCurrency(item.cr_amount) }}</td>
+          <td>{{ item.ref_num }}</td>
+          <td style="text-align: right; font-weight: bold;">{{ formatCurrency(item.cf_amt) }}</td>
         </tr>
         
         <tr v-if="filteredTransactions.length === 0">
