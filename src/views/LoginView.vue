@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { API_BASE, setTokens, scheduleTokenRefresh, decodeJwt } from '@/api';
+import { API_BASE, setAuthTokens, scheduleTokenRefresh, decodeJwt } from '@/api';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const isLogin = ref(true);
 const username = ref('');
 const password = ref('');
+const currency = ref('');
 const errorMsg = ref('');
 
 const toggleMode = () => {
@@ -15,17 +16,30 @@ const toggleMode = () => {
 };
 
 const handleSubmit = async () => {
-    const endpoint = isLogin.value ? '/moneyflow/login/' : '/moneyflow/register/';
+    const endpoint = isLogin.value ? 'login/' : 'register/';
+    let res;
     
     try {
-        const res = await fetch(`${API_BASE}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                username: username.value, 
-                password: password.value 
-            })
-        });
+        if(isLogin.value) {
+            res = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: username.value, 
+                    password: password.value
+                })
+            });
+        } else {
+            res = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: username.value, 
+                    password: password.value,
+                    home_currency: currency.value
+                })
+            });
+        }
 
         const data = await res.json();
 
@@ -35,7 +49,7 @@ const handleSubmit = async () => {
         const refresh = data.refresh || data.refresh_token;
 
         if (access) {
-            setTokens(access, refresh);
+            setAuthTokens(access, refresh);
             scheduleTokenRefresh();
         }
 
@@ -77,6 +91,11 @@ onMounted(() => {
             <div class="form-group">
                 <label>Password</label>
                 <input v-model="password" type="password" class="retro-input" required />
+            </div>
+            
+            <div v-if="!isLogin" class="form-group">
+                <label>Currency</label>
+                <input v-model="currency" type="text" class="retro-input" required />
             </div>
 
             <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>

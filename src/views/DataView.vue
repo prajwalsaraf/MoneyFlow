@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { API_BASE, apiFetch } from '@/api';
+import { api } from '@/api';
 import { Filter } from 'lucide-vue-next';
 
 // --- State ---
@@ -8,6 +8,7 @@ const accounts = ref([]);
 const transactions = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
+const page = ref(1);
 
 // Filter State
 const availableYears = ref([]);
@@ -31,44 +32,20 @@ const getMonthName = (dateStr) => new Date(dateStr).toLocaleString('default', { 
 // --- Fetch Data ---
 onMounted(async () => {
   try {
-    const endpoint = `/moneyflow/accounts/all-txns/`;
-    const accEndpoint = `/moneyflow/accounts/`;
-    
-    const response = await apiFetch(endpoint);
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Server returned an error:", errorText);
-        throw new Error(`Server Error: ${response.status}.`);
-    }
-    
-    const result = await response.json();
-    transactions.value = result.results; // DRF paginated response
-    
-    let prevPage = result.previous
-    let nextPage = result.next
-    
-    
-    const accResponse = await apiFetch(accEndpoint);
-    if (!accResponse.ok) {
-        const errorText = await response.text();
-        console.error("Server returned an error:", errorText);
-        throw new Error(`Server Error: ${response.status}.`);
-    }
-    const acc_result = await accResponse.json()
-    accounts.value = acc_result.results;
-    
-    
-    // 2. NOW IT IS SAFE TO MAP
-    const uniqueYears = [...new Set(transactions.value.map(t => getYear(new Date(t.txn_date))))];
-    
-    // 3. Filter out any potential NaN/undefined years if dates are missing, then sort
-    availableYears.value = uniqueYears
-        .filter(y => !isNaN(y))
-        .sort((a, b) => b - a);
+    const accResponse = await api.getAccounts();
+    // DRF Pagination stores the list in 'results'
+    accounts.value = accResponse.data.results;
+  } catch (error) {
+    console.error("Failed to load accounts:", error);
+  }
 
-  } catch (err) {
-    console.error("Fetch Error:", err);
-    error.value = err.message;
+
+  try {
+    const response = await api.getAllTransactions();
+    // DRF Pagination stores the list in 'results'
+    transactions.value = response.data.results;
+  } catch (error) {
+    console.error("Failed to load accounts:", error);
   } finally {
     isLoading.value = false;
   }
