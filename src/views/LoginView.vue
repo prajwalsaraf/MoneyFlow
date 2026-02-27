@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { API_BASE, setAuthTokens, scheduleTokenRefresh, decodeJwt } from '@/api';
+import { api, scheduleTokenRefresh } from '@/api';
 import { useRouter } from 'vue-router';
+import { userAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
 const isLogin = ref(true);
@@ -9,6 +10,7 @@ const username = ref('');
 const password = ref('');
 const currency = ref('');
 const errorMsg = ref('');
+const authStore = userAuthStore();
 
 const toggleMode = () => {
     isLogin.value = !isLogin.value;
@@ -16,61 +18,33 @@ const toggleMode = () => {
 };
 
 const handleSubmit = async () => {
-    const endpoint = isLogin.value ? 'login/' : 'register/';
-    let res;
+    let body;
     
     try {
         if(isLogin.value) {
-            res = await fetch(`${API_BASE}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    username: username.value, 
-                    password: password.value
-                })
-            });
+            body = {username: username.value, password: password.value}
         } else {
-            res = await fetch(`${API_BASE}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    username: username.value, 
-                    password: password.value,
-                    home_currency: currency.value
-                })
-            });
+            body = {username: username.value, password: password.value, home_currency: currency.value}
         }
 
-        const data = await res.json();
+        const res = isLogin.value ? await api.login(body) : await api.create_user(body);
 
-        if (!res.ok) throw new Error(data.error || 'Request failed');
+        if(res.status === 401) throw new Error(res.data.error);
 
-        const access = data.access || data.token || data.access_token;
-        const refresh = data.refresh || data.refresh_token;
-
-        if (access) {
-            setAuthTokens(access, refresh);
+        if (res.data.access) {
+            authStore.setAccessToken(res.data.access);
             scheduleTokenRefresh();
+            localStorage.setItem("user", res.data.user);
+            router.push('/home');
         }
-
-        const userObj = data.user || data.profile || { username: username.value };
-        localStorage.setItem('user', JSON.stringify(userObj));
-        
-        router.push('/home');
-
     } catch (err) {
         errorMsg.value = err.message || 'Network error occurred';
     }
 };
 
 onMounted(() => {
-    const access = localStorage.getItem('accessToken');
-    if (access) {
-        const payload = decodeJwt(access);
-        if (payload?.exp && payload.exp * 1000 > Date.now() + 5000) {
-            scheduleTokenRefresh();
-            router.push('/home');
-        }
+    if(authStore.accessToken) {
+        router.push('/home');
     }
 });
 </script>

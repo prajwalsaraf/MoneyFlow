@@ -14,6 +14,7 @@
     "jspdf-autotable": "^5.0.7",
     "lucide-vue-next": "^0.563.0",
     "moment": "^2.30.1",
+    "pinia": "^3.0.4",
     "vue": "^3.2.13",
     "vue-chartjs": "^5.3.3",
     "vue-router": "^4.0.3",

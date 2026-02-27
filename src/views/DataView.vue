@@ -33,8 +33,7 @@ const getMonthName = (dateStr) => new Date(dateStr).toLocaleString('default', { 
 onMounted(async () => {
   try {
     const accResponse = await api.getAccounts();
-    // DRF Pagination stores the list in 'results'
-    accounts.value = accResponse.data.results;
+    accounts.value = accResponse.data;
   } catch (error) {
     console.error("Failed to load accounts:", error);
   }
@@ -42,7 +41,6 @@ onMounted(async () => {
 
   try {
     const response = await api.getAllTransactions();
-    // DRF Pagination stores the list in 'results'
     transactions.value = response.data.results;
   } catch (error) {
     console.error("Failed to load accounts:", error);

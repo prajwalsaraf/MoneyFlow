@@ -1,10 +1,10 @@
 <script setup>
-import { RouterView, useRoute, useRouter } from 'vue-router';
-import { Home, Database, LineChart, Upload, Download, Settings, Menu, User, Sun, Moon, LogOut } from 'lucide-vue-next';
+import { RouterView, useRoute } from 'vue-router';
+import { Home, Database, LineChart, Upload, Download, Settings, Menu, User, Sun, Moon, LogOut, Import, Send } from 'lucide-vue-next';
 import { ref, computed, onMounted, watch } from 'vue';
+import { userAuthStore } from '@/stores/authStore';
 
 const route = useRoute();
-const router = useRouter();
 const currentRouteName = computed(() => route.name);
 
 // Check if we are on the login page
@@ -35,9 +35,9 @@ const isDarkMode = ref(false);
 const toggleTheme = () => isDarkMode.value = !isDarkMode.value;
 
 const handleLogout = () => {
-    localStorage.removeItem('user');
-    router.push('/');
-    isProfileOpen.value = false;
+  const authStore = userAuthStore();
+  authStore.logout('accessToken');
+  isProfileOpen.value = false;
 };
 
 // Theme Logic
@@ -47,7 +47,11 @@ const applyTheme = () => {
 };
 
 onMounted(() => {
-  const storedTheme = localStorage.getItem('theme');
+  let storedTheme = localStorage.getItem('theme');
+  if(!storedTheme) {
+    storedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    localStorage.setItem("theme", storedTheme);
+  }
   if (storedTheme === 'dark') isDarkMode.value = true;
   applyTheme();
 });
@@ -65,8 +69,8 @@ const sidebarItems = [
 ];
 
 const bottomSidebarItems = [
-  { name: 'import', path: '/import', icon: Upload, label: 'Import' },
-  { name: 'export', path: '/export', icon: Download, label: 'Export' },
+  { name: 'import', path: '/import', icon: Import, label: 'Import' },
+  { name: 'export', path: '/export', icon: Upload, label: 'Export' },
   //{ name: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
 ];
 </script>
@@ -79,7 +83,7 @@ const bottomSidebarItems = [
         <Menu />
       </div>
       
-      <h1 class="page-title">Finance App</h1>
+      <h1 class="page-title">MoneyFlow</h1>
 
       <div class="profile-container">
          <div class="retro-btn icon-btn profile-btn" @click="toggleProfile">

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
+
 import { api } from '@/api';
 
 const showModal = ref(false);
@@ -9,8 +10,7 @@ const isLoading = ref(true);
 const fetchAccounts = async () => {
   try {
     const response = await api.getAccounts();
-    // DRF Pagination stores the list in 'results'
-    accounts.value = response.data.results; 
+    accounts.value = response.data; 
   } catch (error) {
     console.error("Failed to load accounts:", error);
   } finally {
@@ -35,7 +35,7 @@ const submitAccount = async () => {
     const response = await api.post('accounts/', form);
     console.log('Success:', response.data);
     showModal.value = false;
-    alert('Account added successfully!');
+alert('Account added successfully!');
   } catch (error) {
     console.error('Error adding account:', error);
     alert('Failed to add account. Check the console.');
@@ -48,7 +48,7 @@ const formatCurrency = (value) => {
 };
 
 onMounted(() => {
-  fetchAccounts();
+    fetchAccounts();
 });
 </script>
 

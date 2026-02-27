@@ -1,4 +1,6 @@
 import axios from 'axios';
+import router from './router';
+import { userAuthStore } from '@/stores/authStore';
 
 export const API_BASE = process.env.VUE_APP_API_URL || 'http://localhost:8000/moneyflow/';
 export const TOKEN_REFRESH_PATH = process.env.VUE_APP_TOKEN_REFRESH_PATH || 'token/refresh/';
@@ -11,24 +13,17 @@ const apiClient = axios.create({
   }
 });
 
-export function getTokens() {
-  return {
-    access: localStorage.getItem('accessToken'),
-    refresh: localStorage.getItem('refreshToken'),
-  };
+export function getAccessToken() {
+  const authStore = userAuthStore();
+  return authStore.accessToken;
 }
 
-export function setAuthTokens(access, refresh) {
-  if (access) localStorage.setItem('accessToken', access);
-  if (refresh) localStorage.setItem('refreshToken', refresh);
+export function setAccessToken(access) {
+  const authStore = userAuthStore();
+  if (access) authStore.setAccessToken('accessToken', access);
 }
 
-export function clearAuthTokens() {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-}
 
-// Fixed: Added 'export' to make it accessible as a named import
 export function decodeJwt(token) {
   try {
     const payload = token.split('.')[1];
@@ -40,7 +35,7 @@ export function decodeJwt(token) {
 
 export async function apiFetch(endpoint, options = {}) {
   const opts = { ...options, headers: { ...(options.headers || {}) } };
-  const { access } = getTokens();
+  const access = getAccessToken();
   
   if (access) opts.headers['Authorization'] = `Bearer ${access}`;
 
@@ -56,25 +51,27 @@ export async function apiFetch(endpoint, options = {}) {
     throw new Error('Network error. Is the server running?');
   }
 
-  if (res.status === 401) {
-    const newAccess = await refreshAccessToken();
-    if (newAccess) {
-      opts.headers['Authorization'] = `Bearer ${newAccess}`;
-      res = await fetch(`${API_BASE}${endpoint}`, opts);
-    }
-  }
+  // if (res.status === 401) {
+  //   const newAccess = await refreshAccessToken();
+  //   if (newAccess) {
+  //     opts.headers['Authorization'] = `Bearer ${newAccess}`;
+  //     res = await fetch(`${API_BASE}${endpoint}`, opts);
+  //   }
+  // }
 
   return res;
 }
 
 apiClient.interceptors.request.use(
   (config) => {
-    const { access } = getTokens();
-    
+    const access = getAccessToken();
+    const isLoginRequest = config.url.endsWith('login/');
+
+    if(isLoginRequest)
+      return config;
     if (access) {
       config.headers['Authorization'] = `Bearer ${access}`;
     }
-    
     return config;
   },
   (error) => {
@@ -83,20 +80,52 @@ apiClient.interceptors.request.use(
 );
 
 export const api = {
-  get(endpoint, data) {
+  get(endpoint, data={}) {
     return apiClient.get(endpoint, data);
   },
-  post(endpoint, data) {
+  post(endpoint, data={}) {
     return apiClient.post(endpoint, data);
   },
-  put(endpoint, data) {
+  put(endpoint, data={}) {
     return apiClient.put(endpoint, data);
   },
-  patch(endpoint, data) {
+  patch(endpoint, data={}) {
     return apiClient.patch(endpoint, data);
   },
-  delete(endpoint, data) {
+  delete(endpoint, data={}) {
     return apiClient.delete(endpoint, data);
+  },
+
+  login(credentials) {
+    return apiClient.post('login/', credentials, {
+      withCredentials: true
+    });
+  },
+
+  refresh_token() {
+    try {
+      return apiClient.post('token/refresh/', {}, {
+        withCredentials: true
+      });
+    } catch(error) {
+      console.log("Cannot logout at this time!");
+    }
+  },
+
+  logout() {
+    try {
+      return apiClient.post('logout/', {}, {
+        withCredentials: true
+      });
+    } catch(error) {
+      console.log("Cannot logout at this time!");
+    }
+  },
+
+  create_user(details) {
+    return apiClient.post('register/', details, {
+      withCredentials: true
+    });
   },
 
   getAccounts(page = 1) {
@@ -113,10 +142,13 @@ export const api = {
 apiClient.interceptors.response.use(
   (response) => response, 
   (error) => {
+    if(error.config.url.endsWith('login/'))
+      return error.response;
+
     if (error.response && error.response.status === 401) {
       // Token expired or invalid
       console.warn("Unauthorized! Redirecting to login...");
-      window.location.href = '/login'; 
+      router.push('/'); 
     }
     return Promise.reject(error);
   }
@@ -124,29 +156,21 @@ apiClient.interceptors.response.use(
 
 let refreshInProgress = null;
 
-async function refreshAccessToken() {
-  const { refresh } = getTokens();
-  if (!refresh) return null;
+export function refreshAccessToken() {
+  // const { refresh } = getAccessToken();
+  // if (!refresh) return null;
   if (refreshInProgress) return refreshInProgress;
 
   refreshInProgress = (async () => {
     try {
-      const res = await api.post(TOKEN_REFRESH_PATH, refresh);
-      // const res = await fetch(`${API_BASE}${TOKEN_REFRESH_PATH}`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ refresh })
-      // });
-      
-      // if (!res.ok) throw new Error('Refresh failed');
+      const res = await api.refresh_token();
       const newAccess = res.data.access;
       
-      if (newAccess) setAuthTokens(newAccess, refresh);
+      if (newAccess) setAccessToken(newAccess);
       refreshInProgress = null;
       return newAccess;
 
     } catch (e) {
-      clearAuthTokens();
       refreshInProgress = null;
       return null;
     }
@@ -158,7 +182,7 @@ async function refreshAccessToken() {
 let refreshTimeoutId = null;
 
 export function scheduleTokenRefresh() {
-  const { access } = getTokens();
+  const access = getAccessToken();
   clearTimeout(refreshTimeoutId);
   
   if (!access) return;
